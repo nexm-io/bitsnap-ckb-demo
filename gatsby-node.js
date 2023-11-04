@@ -1,16 +1,16 @@
-const webpack = require('webpack');
+const webpack = require("webpack");
 
 exports.onCreateWebpackConfig = ({ actions }) => {
   actions.setWebpackConfig({
     plugins: [
       new webpack.ProvidePlugin({
-        Buffer: [require.resolve('buffer/'), 'Buffer'],
+        Buffer: [require.resolve("buffer/"), "Buffer"],
       }),
     ],
     resolve: {
       fallback: {
         crypto: false,
-        stream: require.resolve('stream-browserify'),
+        stream: require.resolve("stream-browserify"),
         assert: false,
         util: false,
         http: false,

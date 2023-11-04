@@ -1,67 +1,41 @@
-import { useEffect, useState } from 'react';
-import { getNetworkInSnap, updateNetworkInSnap } from '../utils';
-import { BitcoinNetwork, BitcoinScriptType } from '../utils/interface';
-import { useAppStore } from '../mobx';
+import { useContext, useEffect, useState } from "react";
+import { getNetworkInSnap, updateNetworkInSnap } from "../utils";
+import { BitcoinNetwork } from "../utils/interface";
+import { MetaMaskContext } from "./MetamaskContext";
 
 export const useNetwork = () => {
-  const {
-    current,
-    persistDataLoaded,
-    settings: {
-      network: networkConfig,
-      setNetwork: setNetworkConfig,
-      scriptType,
-    },
-    switchToAccount,
-  } = useAppStore();
-  const [network, setNetwork] = useState(networkConfig);
-  const [isSettingNetwork, setIsSettingNetwork] = useState<boolean>(false);
+  const [network, setNetwork] = useState<BitcoinNetwork | null>(null);
+  const [state] = useContext(MetaMaskContext);
 
-  const switchNetwork = async (netValue: BitcoinNetwork) => {
-    const targetNetwork = await updateNetworkInSnap(netValue);
+  const getCurrentNetwork = () => {
+    getNetworkInSnap().then((network) => {
+      switch (network) {
+        case "test":
+          setNetwork(BitcoinNetwork.Test);
+          break;
+        case "main":
+          setNetwork(BitcoinNetwork.Main);
+          break;
 
-    if (targetNetwork) {
-      setNetworkConfig(netValue);
-      setNetwork(netValue);
-      current && switchToAccount(current.mfp, scriptType, netValue);
-    }
+        default:
+          console.error("Unknown network", network);
+          break;
+      }
+    });
   };
 
-  const switchNetworkSettingAndUpdateState = (
-    targetNetwork: BitcoinNetwork,
-  ) => {
-    setNetworkConfig(targetNetwork);
-    setNetwork(targetNetwork);
-    current && switchToAccount(current.mfp, current.scriptType, targetNetwork);
+  const switchNetwork = (network: BitcoinNetwork) => {
+    updateNetworkInSnap(network).then(() => setNetwork(network));
   };
 
   useEffect(() => {
-    if (!persistDataLoaded) {
-      return;
+    if (state.installedSnap) {
+      getCurrentNetwork();
     }
-
-    if (current) {
-      getNetworkInSnap().then((network) => {
-        if (network === '') {
-          setIsSettingNetwork(true);
-          updateNetworkInSnap(current.network).then(() => {
-            setIsSettingNetwork(false);
-          });
-        } else {
-          const networkInSnap =
-            network === 'test' ? BitcoinNetwork.Test : BitcoinNetwork.Main;
-          const isNetworkTheSame = networkInSnap === current.network;
-          if (!isNetworkTheSame) {
-            switchNetworkSettingAndUpdateState(networkInSnap);
-          }
-        }
-      });
-    }
-  }, [persistDataLoaded, current]);
+  }, [state.installedSnap]);
 
   return {
     network,
-    isSettingNetwork,
     switchNetwork,
   };
 };

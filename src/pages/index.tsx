@@ -1,25 +1,10 @@
-import { useContext } from 'react';
-import styled from 'styled-components';
-import { MetamaskActions, MetaMaskContext } from '../hooks';
-import {
-  connectSnap,
-  getAllExtendedPublicKeys,
-  getSnap,
-  isLocalSnap,
-  shouldDisplayReconnectButton,
-} from '../utils';
-import {
-  ConnectButton,
-  InstallFlaskButton,
-  ReconnectButton,
-  SendButton,
-  Card,
-  Button,
-} from '../components';
-import { defaultSnapOrigin } from '../config';
-import { useNetwork } from '../hooks/useNetwork';
-import { BitcoinNetwork } from '../utils/interface';
-import { useAddress } from '../hooks/useAddress';
+import { useContext } from "react";
+import styled from "styled-components";
+import { MetaMaskContext } from "../hooks";
+import { ConnectCard } from "../components/Demo/ConnectCard";
+import { NetworkCard } from "../components/Demo/NetworkCard";
+import { AccountCard } from "../components/Demo/AccountCard";
+import { SendCard } from "../components/Demo/SendCard";
 
 const Container = styled.div`
   display: flex;
@@ -86,46 +71,8 @@ const ErrorMessage = styled.div`
   }
 `;
 
-const Row = styled.div`
-  display: flex;
-  gap: 10px;
-`;
-
 const Index = () => {
-  const [state, dispatch] = useContext(MetaMaskContext);
-  const { network, switchNetwork } = useNetwork();
-  const { address } = useAddress();
-
-  const isMetaMaskReady = isLocalSnap(defaultSnapOrigin)
-    ? state.isFlask
-    : state.snapsDetected;
-
-  const handleConnectClick = async () => {
-    try {
-      await connectSnap();
-      const installedSnap = await getSnap();
-
-      dispatch({
-        type: MetamaskActions.SetInstalled,
-        payload: installedSnap,
-      });
-    } catch (e) {
-      console.error(e);
-      dispatch({ type: MetamaskActions.SetError, payload: e });
-    }
-  };
-
-  const handleSendClick = async () => {
-    try {
-      getAllExtendedPublicKeys().then(({ mfp, xpubs }) => {
-        console.log('mfp', mfp);
-        console.log('xpubs', xpubs);
-      });
-    } catch (e) {
-      console.error(e);
-      dispatch({ type: MetamaskActions.SetError, payload: e });
-    }
-  };
+  const [state] = useContext(MetaMaskContext);
 
   return (
     <Container>
@@ -141,115 +88,11 @@ const Index = () => {
             <b>An error happened:</b> {state.error.message}
           </ErrorMessage>
         )}
-        {!isMetaMaskReady && (
-          <Card
-            content={{
-              title: 'Install',
-              description:
-                'Snaps is pre-release software only available in MetaMask Flask, a canary distribution for developers with access to upcoming features.',
-              button: <InstallFlaskButton />,
-            }}
-            fullWidth
-          />
-        )}
-        {!state.installedSnap && (
-          <Card
-            content={{
-              title: 'Connect',
-              description:
-                'Get started by connecting to and installing the nexum snap.',
-              button: (
-                <ConnectButton
-                  onClick={handleConnectClick}
-                  disabled={!isMetaMaskReady}
-                />
-              ),
-            }}
-            disabled={!isMetaMaskReady}
-          />
-        )}
-        {shouldDisplayReconnectButton(state.installedSnap) && (
-          <Card
-            content={{
-              title: 'Reconnect',
-              description:
-                'While connected to a local running snap this button will always be displayed in order to update the snap if a change is made.',
-              button: (
-                <ReconnectButton
-                  onClick={handleConnectClick}
-                  disabled={!state.installedSnap}
-                />
-              ),
-            }}
-            disabled={!state.installedSnap}
-          />
-        )}
-        <Card
-          content={{
-            title: 'Network',
-            description: network ? (
-              <>
-                <p>Your current network:</p>
-                <p>
-                  <b>{network.toString()}</b>
-                </p>
-              </>
-            ) : (
-              'Please connect to one of below networks'
-            ),
-            button: (
-              <Row>
-                <Button
-                  onClick={() => switchNetwork(BitcoinNetwork.Main)}
-                  disabled={network === 'mainnet'}
-                >
-                  BTC Mainnet
-                </Button>
-                <Button
-                  onClick={() => switchNetwork(BitcoinNetwork.Test)}
-                  disabled={network === 'testnet'}
-                >
-                  BTC Testnet
-                </Button>
-              </Row>
-            ),
-          }}
-          disabled={!state.installedSnap}
-          fullWidth={
-            isMetaMaskReady &&
-            Boolean(state.installedSnap) &&
-            !shouldDisplayReconnectButton(state.installedSnap)
-          }
-        />
-        <Card
-          content={{
-            title: 'Send BTC',
-            description: (
-              <>
-                <p>
-                  Your Address: <br />
-                  <b>{address}</b>
-                </p>
-                <p>
-                  Your Balance: <br />
-                  <b></b>
-                </p>
-              </>
-            ),
-            button: (
-              <SendButton
-                onClick={handleSendClick}
-                disabled={!state.installedSnap}
-              />
-            ),
-          }}
-          disabled={!state.installedSnap}
-          fullWidth={
-            isMetaMaskReady &&
-            Boolean(state.installedSnap) &&
-            !shouldDisplayReconnectButton(state.installedSnap)
-          }
-        />
+
+        <ConnectCard />
+        <NetworkCard />
+        <AccountCard />
+        <SendCard />
       </CardContainer>
     </Container>
   );

@@ -1,10 +1,11 @@
-import { FunctionComponent, ReactNode, useContext, useEffect } from 'react';
-import styled from 'styled-components';
-import { Footer, Header } from './components';
-import { Buffer } from 'buffer';
-import { GlobalStyle } from './config/theme';
-import { ToggleThemeContext } from './Root';
-import { MobxStoreProvider, getAppStore } from './mobx';
+import { FunctionComponent, ReactNode, useContext, useEffect } from "react";
+import styled from "styled-components";
+import { Footer, Header } from "./components";
+import { Buffer } from "buffer";
+import { GlobalStyle } from "./config/theme";
+import { ToggleThemeContext } from "./Root";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 const Wrapper = styled.div`
   display: flex;
@@ -20,7 +21,6 @@ export type AppProps = {
 
 export const App: FunctionComponent<AppProps> = ({ children }) => {
   const toggleTheme = useContext(ToggleThemeContext);
-  const mobxStore = getAppStore();
 
   useEffect(() => {
     // @ts-ignore
@@ -29,14 +29,13 @@ export const App: FunctionComponent<AppProps> = ({ children }) => {
 
   return (
     <>
-      <MobxStoreProvider value={mobxStore}>
-        <GlobalStyle />
-        <Wrapper>
-          <Header handleToggleClick={toggleTheme} />
-          {children}
-          <Footer />
-        </Wrapper>
-      </MobxStoreProvider>
+      <ToastContainer />
+      <GlobalStyle />
+      <Wrapper>
+        <Header handleToggleClick={toggleTheme} />
+        {children}
+        <Footer />
+      </Wrapper>
     </>
   );
 };
