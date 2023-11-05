@@ -52,7 +52,7 @@ export const ConnectCard = () => {
       {!state.installedSnap && (
         <Card
           content={{
-            title: "Connect",
+            title: "Connect Snap",
             description:
               "Get started by connecting to and installing the nexum snap.",
             button: (

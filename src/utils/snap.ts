@@ -66,6 +66,7 @@ export interface BitcoinAccount {
   pubKey: string;
   address: string;
   mfp: string;
+  network: "main" | "test";
 }
 
 export async function getAccounts(): Promise<BitcoinAccount[]> {
@@ -165,6 +166,7 @@ export async function isConnected(
   network: BitcoinNetwork
 ): Promise<boolean> {
   try {
+    const networkParams = network === BitcoinNetwork.Main ? "main" : "test";
     return (await window.ethereum.request({
       method: "wallet_invokeSnap",
       params: {
@@ -173,7 +175,7 @@ export async function isConnected(
           method: "btc_isConnected",
           params: {
             address,
-            network,
+            network: networkParams,
           },
         },
       },
@@ -190,6 +192,7 @@ export async function connect(
   network: BitcoinNetwork
 ): Promise<boolean> {
   try {
+    const networkParams = network === BitcoinNetwork.Main ? "main" : "test";
     return (await window.ethereum.request({
       method: "wallet_invokeSnap",
       params: {
@@ -198,7 +201,7 @@ export async function connect(
           method: "btc_connect",
           params: {
             address,
-            network,
+            network: networkParams,
           },
         },
       },
@@ -215,6 +218,7 @@ export async function disconnect(
   network: BitcoinNetwork
 ): Promise<boolean> {
   try {
+    const networkParams = network === BitcoinNetwork.Main ? "main" : "test";
     return (await window.ethereum.request({
       method: "wallet_invokeSnap",
       params: {
@@ -223,7 +227,7 @@ export async function disconnect(
           method: "btc_disconnect",
           params: {
             address,
-            network,
+            network: networkParams,
           },
         },
       },

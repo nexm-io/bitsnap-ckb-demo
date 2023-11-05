@@ -59,6 +59,7 @@ export const useAccount = () => {
   const checkConnected = (address: string) => {
     if (network) {
       return isConnected(address, network).then((connected) => {
+        console.log(connected);
         setConnected(connected);
       });
     }
