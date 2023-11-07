@@ -47,7 +47,7 @@ const CardContainer = styled.div`
   flex-direction: row;
   flex-wrap: wrap;
   justify-content: space-between;
-  max-width: 64.8rem;
+  max-width: 100rem;
   width: 100%;
   height: 100%;
   margin-top: 1.5rem;
@@ -91,6 +91,8 @@ const Index = () => {
 
         <ConnectCard />
         <NetworkCard />
+      </CardContainer>
+      <CardContainer>
         <AccountCard />
         <SendCard />
       </CardContainer>

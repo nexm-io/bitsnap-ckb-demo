@@ -6,6 +6,10 @@ import { GlobalStyle } from "./config/theme";
 import { ToggleThemeContext } from "./Root";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { initEccLib } from "bitcoinjs-lib";
+import * as ecc from "@bitcoin-js/tiny-secp256k1-asmjs";
+
+initEccLib(ecc);
 
 const Wrapper = styled.div`
   display: flex;

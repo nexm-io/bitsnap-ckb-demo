@@ -16,10 +16,6 @@ export const NetworkCard = () => {
   const { network, switchNetwork } = useNetwork();
   const [state] = useContext(MetaMaskContext);
 
-  const isMetaMaskReady = isLocalSnap(defaultSnapOrigin)
-    ? state.isFlask
-    : state.snapsDetected;
-
   return (
     <Card
       content={{
@@ -52,11 +48,6 @@ export const NetworkCard = () => {
         ),
       }}
       disabled={!state.installedSnap}
-      fullWidth={
-        isMetaMaskReady &&
-        Boolean(state.installedSnap) &&
-        !shouldDisplayReconnectButton(state.installedSnap)
-      }
     />
   );
 };

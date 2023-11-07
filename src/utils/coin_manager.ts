@@ -1,16 +1,19 @@
-import * as bitcoin from 'bitcoinjs-lib';
-import * as bip32 from 'bip32';
-import { BitcoinNetwork, BitcoinScriptType } from './interface';
-import { detectNetworkAndScriptType, networkAndScriptMap } from './bitcoin';
+import * as bitcoin from "bitcoinjs-lib";
+import * as bip32 from "bip32";
+import { BitcoinNetwork, BitcoinScriptType } from "./interface";
+import { detectNetworkAndScriptType, networkAndScriptMap } from "./bitcoin";
+
+export const toXOnly = (pubKey: Buffer) =>
+  pubKey.length === 32 ? pubKey : pubKey.slice(1, 33);
 
 export class Bitcoin {
   public deriveAddress(
     publicKey: Buffer,
     scriptType: BitcoinScriptType,
-    network: BitcoinNetwork,
+    network: BitcoinNetwork
   ): string {
     const networkConfig = this.getNetworkConfig(network);
-    let address: string | undefined = '';
+    let address: string | undefined = "";
     switch (scriptType) {
       case BitcoinScriptType.P2PKH:
         address = bitcoin.payments.p2pkh({
@@ -33,13 +36,21 @@ export class Bitcoin {
           network: networkConfig,
         }).address;
         break;
+      case BitcoinScriptType.P2TR:
+        // Since internalKey is an xOnly pubkey, we drop the DER header byte
+        const xOnlyPubkey = toXOnly(publicKey);
+        address = bitcoin.payments.p2tr({
+          pubkey: xOnlyPubkey,
+          network: networkConfig,
+        }).address;
+        break;
       default:
-        address = '';
+        address = "";
     }
     if (address) {
       return address;
     } else {
-      throw new Error('generate address failed');
+      throw new Error("generate address failed");
     }
   }
 
@@ -52,7 +63,7 @@ export class Bitcoin {
   public convertPubKeyFormat(extendedPubKey: string) {
     const { network, config } = detectNetworkAndScriptType(extendedPubKey);
     const networkConfig = this.getNetworkConfig(network);
-    const targetPrefix = network === BitcoinNetwork.Main ? 'xpub' : 'tpub';
+    const targetPrefix = network === BitcoinNetwork.Main ? "xpub" : "tpub";
     return {
       pubKey: this.transferNode(extendedPubKey, targetPrefix, config),
       network: networkConfig,
@@ -70,10 +81,10 @@ export class Bitcoin {
   private transferNode(
     extendedPubKey: string,
     prefix: string,
-    config: { private: number; public: number },
+    config: { private: number; public: number }
   ) {
     const node = bip32.fromBase58(extendedPubKey, { bip32: config, wif: 0 });
-    const mainConfig = networkAndScriptMap[prefix]['config'];
+    const mainConfig = networkAndScriptMap[prefix]["config"];
     const transferNode = bip32.fromPublicKey(node.publicKey, node.chainCode, {
       bip32: mainConfig,
       wif: 0,

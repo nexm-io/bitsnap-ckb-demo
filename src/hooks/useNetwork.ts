@@ -2,26 +2,25 @@ import { useContext, useEffect, useState } from "react";
 import { getNetworkInSnap, updateNetworkInSnap } from "../utils";
 import { BitcoinNetwork } from "../utils/interface";
 import { MetaMaskContext } from "./MetamaskContext";
+import { toast } from "react-toastify";
 
 export const useNetwork = () => {
   const [network, setNetwork] = useState<BitcoinNetwork | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
   const [state] = useContext(MetaMaskContext);
 
   const getCurrentNetwork = () => {
-    getNetworkInSnap().then((network) => {
-      switch (network) {
-        case "test":
-          setNetwork(BitcoinNetwork.Test);
-          break;
-        case "main":
-          setNetwork(BitcoinNetwork.Main);
-          break;
-
-        default:
-          console.error("Unknown network", network);
-          break;
-      }
-    });
+    setLoading(true);
+    getNetworkInSnap()
+      .then((network) => {
+        setNetwork(network);
+        setLoading(false);
+      })
+      .catch((error) => {
+        toast.error("Cannot get current network");
+        console.error(error);
+        setLoading(false);
+      });
   };
 
   const switchNetwork = (network: BitcoinNetwork) => {
@@ -29,7 +28,7 @@ export const useNetwork = () => {
   };
 
   useEffect(() => {
-    if (state.installedSnap) {
+    if (state.installedSnap && !loading && !network) {
       getCurrentNetwork();
     }
   }, [state.installedSnap]);

@@ -1,43 +1,59 @@
-import {
-  isLocalSnap,
-  shouldDisplayReconnectButton,
-  signPsbt,
-} from "../../utils";
+import { isLocalSnap, signPsbt } from "../../utils";
 import { Button, Card } from "../../components";
 import { useContext, useEffect, useState } from "react";
 import { MetaMaskContext } from "../../hooks";
 import { defaultSnapOrigin } from "../../config";
-import { useAccount } from "../../hooks/useAccount";
 import { bitToSat, satToBit } from "../../mempool/address";
 import { composePsbt } from "../../utils/psbt";
 import { validateTx } from "../../utils/psbtValidator";
-import { getRecommendFees } from "../../mempool/fee";
+import { RecommendedFees, getRecommendFees } from "../../mempool/fee";
 import { useNetwork } from "../../hooks/useNetwork";
 import { submitTx } from "../../mempool/transaction";
 import { toast } from "react-toastify";
+import { truncateString } from "../../utils/string";
+import { useAccount } from "../../hooks/useAccount";
+import { useUtxo } from "../../hooks/useUtxo";
+import styled from "styled-components";
+
+const Row = styled.div`
+  display: flex;
+  gap: 10px;
+`;
 
 export const SendCard = () => {
   const [state] = useContext(MetaMaskContext);
   const [amount, setAmount] = useState<string>("0");
   const [receiver, setReceiver] = useState<string>("");
-  const { connected, balance, connectToSnap, currentAccount } = useAccount();
   const { network } = useNetwork();
-  const [fee, setFee] = useState(0);
+  // Fees
+  const [fees, setFees] = useState<RecommendedFees | undefined>();
+  const [fee, setFee] = useState<string>("");
   const [finalFee, setFinalFee] = useState(0);
+
+  // Utxo
+  const { selected, totalUtxoValue, listUtxo, setSelected } = useUtxo();
+
+  // Account
+  const { accounts } = useAccount();
+  const [changeAddress, setChangeAddress] = useState<string>(
+    accounts.length > 0 ? accounts[0].address : ""
+  );
 
   useEffect(() => {
     if (network) {
-      getRecommendFees(network).then((fees) => setFee(fees.economyFee));
+      getRecommendFees(network).then((fees) => setFees(fees));
     }
   }, [network]);
 
-  const isMetaMaskReady = isLocalSnap(defaultSnapOrigin)
-    ? state.isFlask
-    : state.snapsDetected;
+  useEffect(() => {
+    if (fees && !fee) {
+      setFee(Object.keys(fees)[0]);
+    }
+  }, [fees]);
 
   const handleUpdateAmount = (amountStr: string) => {
     const amountNum = parseFloat(amountStr);
-    const bit = satToBit(balance);
+    const bit = satToBit(totalUtxoValue);
     if (amountNum) {
       if (amountNum < 0) {
         setAmount("0");
@@ -52,29 +68,38 @@ export const SendCard = () => {
   };
 
   const handleSendClick = async () => {
-    if (currentAccount && receiver && network) {
-      // Construct Tx
+    if (!changeAddress) {
+      toast("No change address");
+      return;
+    }
+
+    if (!receiver) {
+      toast("No receiver");
+      return;
+    }
+
+    if (receiver && network && fees) {
+      // // Construct Tx
       const { psbt, finalFee } = await composePsbt(
         receiver,
-        currentAccount,
+        changeAddress,
+        network,
+        selected,
         bitToSat(parseFloat(amount)),
-        fee
+        fees[fee]
       );
-
       if (
         !validateTx({
           psbt,
-          utxoAmount: balance,
+          // TODO: must calculate from list utxo
+          utxoAmount: totalUtxoValue,
         })
       ) {
         throw Error("Transaction is not valid");
       }
-
       // Sign Tx
       setFinalFee(finalFee);
-
       const { txId, txHex } = await signPsbt(psbt.toBase64());
-
       // Submit Tx
       submitTx(txHex, network).then((result) => {
         if (result) {
@@ -84,31 +109,122 @@ export const SendCard = () => {
     }
   };
 
-  const handleConnectClick = () => {
-    connectToSnap();
+  const UtxoCard = () => {
+    const handleOnChange = (index: number) => {
+      if (
+        selected.findIndex(
+          (utxo) =>
+            utxo.txid === listUtxo[index].txid &&
+            utxo.vout === listUtxo[index].vout
+        ) === -1
+      ) {
+        setSelected([...selected, listUtxo[index]]);
+      } else {
+        setSelected(
+          selected.filter(
+            (utxo) =>
+              utxo.txid !== listUtxo[index].txid ||
+              utxo.vout !== listUtxo[index].vout
+          )
+        );
+      }
+    };
+
+    return (
+      <>
+        <b>UTXO</b>
+        <br />
+        {listUtxo.map((utxo, index) => {
+          return (
+            <div key={index}>
+              <div>
+                <input
+                  type="checkbox"
+                  name={utxo.txid}
+                  value={index}
+                  checked={selected
+                    .map((v) => `${v.txid}-${v.vout}`)
+                    .includes(`${utxo.txid}-${utxo.vout}`)}
+                  onChange={() => handleOnChange(index)}
+                />
+                <label
+                  onClick={() => {
+                    navigator.clipboard.writeText(utxo.account.address);
+                    toast.success("Copy address success");
+                  }}
+                >
+                  {truncateString(utxo.account.address, 20)}
+                </label>
+              </div>
+              <div className="right-section">{utxo.value} sat</div>
+            </div>
+          );
+        })}
+        <div>
+          <p>Total: {totalUtxoValue} sat</p>
+        </div>
+      </>
+    );
   };
 
   return (
     <Card
+      fullWidth={true}
       content={{
         title: "Send Coin",
         description: (
           <>
-            <p>Send Amount (In BTC):</p>
-            <input
-              placeholder="Send Amount"
-              value={amount}
-              onChange={(event) => handleUpdateAmount(event.target.value)}
-            />
-            <p>Receiver Address:</p>
-            <input
-              placeholder="Receiver"
-              value={receiver}
-              onChange={(event) => setReceiver(event.target.value)}
-            />
+            <Row>
+              <div>
+                <p>Send Amount (In BTC):</p>
+                <input
+                  placeholder="Send Amount"
+                  value={amount}
+                  onChange={(event) => handleUpdateAmount(event.target.value)}
+                />
+                <p>Receiver Address:</p>
+                <input
+                  placeholder="Receiver"
+                  value={receiver}
+                  onChange={(event) => setReceiver(event.target.value)}
+                />
+                <p>Fee Rate</p>
+                <select
+                  value={fee}
+                  onChange={(e) => {
+                    setFee(e.target.value);
+                  }}
+                >
+                  {fees &&
+                    Object.keys(fees).map((fee) => (
+                      <option key={fee} value={fee}>
+                        {fee}
+                      </option>
+                    ))}
+                </select>
+                <p>Change Address:</p>
+                <select
+                  value={changeAddress}
+                  onChange={(e) => {
+                    setChangeAddress(e.target.value);
+                  }}
+                >
+                  {accounts.map((account) => (
+                    <option key={account.address} value={account.address}>
+                      {truncateString(account.address, 30)}
+                    </option>
+                  ))}
+                </select>
+                <br />
+                <br />
+              </div>
+              <div>
+                <UtxoCard />
+              </div>
+            </Row>
             <hr />
             <p>
-              Fee Rate: <b>{fee}</b> sat/vB (Economy)
+              Fee Rate: <b>{fees ? fees[fee] : "0"}</b> sat/vB
             </p>
             <p>
               Final Fee: <b>{satToBit(finalFee)}</b> BIT
@@ -117,27 +233,13 @@ export const SendCard = () => {
         ),
         button: (
           <>
-            {connected ? (
-              <Button
-                onClick={() => handleSendClick()}
-                disabled={amount === "0"}
-              >
-                Send BTC
-              </Button>
-            ) : (
-              <Button onClick={() => handleConnectClick()}>
-                Connect Account
-              </Button>
-            )}
+            <Button onClick={() => handleSendClick()} disabled={amount === "0"}>
+              Send BTC
+            </Button>
           </>
         ),
       }}
       disabled={!state.installedSnap}
-      fullWidth={
-        isMetaMaskReady &&
-        Boolean(state.installedSnap) &&
-        !shouldDisplayReconnectButton(state.installedSnap)
-      }
     />
   );
 };

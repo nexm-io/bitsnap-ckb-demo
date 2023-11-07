@@ -13,8 +13,15 @@ export const getBalance = async (address: string, network: BitcoinNetwork) => {
     if (response.ok) {
       const { chain_stats } = await response.json();
       // Bitcoin Decimal = 8
-      if (chain_stats && chain_stats.funded_txo_sum !== undefined) {
-        return chain_stats.funded_txo_sum as number;
+      if (
+        chain_stats &&
+        chain_stats.funded_txo_sum !== undefined &&
+        chain_stats.spent_txo_sum !== undefined
+      ) {
+        return (
+          (chain_stats.funded_txo_sum as number) -
+          (chain_stats.spent_txo_sum as number)
+        );
       } else {
         return Promise.reject(new Error(`Cannot parse data`));
       }

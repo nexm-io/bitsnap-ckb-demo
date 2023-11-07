@@ -1,11 +1,12 @@
 import { BitcoinNetwork } from "../utils/interface";
 
 export type RecommendedFees = {
-  fastestFee: number;
-  halfHourFee: number;
-  hourFee: number;
-  economyFee: number;
-  minimumFee: number;
+  [fee: string]: number;
+  // fastestFee: number;
+  // halfHourFee: number;
+  // hourFee: number;
+  // economyFee: number;
+  // minimumFee: number;
 };
 
 export const getRecommendFees = async (network: BitcoinNetwork) => {

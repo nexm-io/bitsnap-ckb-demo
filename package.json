@@ -25,6 +25,7 @@
     ]
   },
   "dependencies": {
+    "@bitcoin-js/tiny-secp256k1-asmjs": "^2.2.3",
     "@metamask/providers": "^9.0.0",
     "bip32": "^2.0.6",
     "bitcoinjs-lib": "^6.0.1",

@@ -1,6 +1,7 @@
+import { BitcoinAccount } from "../utils";
 import { BitcoinNetwork } from "../utils/interface";
 
-export type Utxo = {
+type MempoolUtxoResponse = {
   txid: string;
   vout: number;
   status: {
@@ -12,16 +13,26 @@ export type Utxo = {
   value: number;
 };
 
-export const getUtxo = async (address: string, network: BitcoinNetwork) => {
+export type Utxo = MempoolUtxoResponse & { account: BitcoinAccount };
+
+export const getUtxo = async (
+  account: BitcoinAccount,
+  network: BitcoinNetwork
+) => {
   try {
     const response = await fetch(
       network === BitcoinNetwork.Main
-        ? `https://mempool.space/api/address/${address}/utxo`
-        : `https://mempool.space/testnet/api/address/${address}/utxo`
+        ? `https://mempool.space/api/address/${account.address}/utxo`
+        : `https://mempool.space/testnet/api/address/${account.address}/utxo`
     );
 
     if (response.ok) {
-      return (await response.json()) as Utxo[];
+      return (await response.json()).map((utxo: MempoolUtxoResponse) => {
+        return {
+          ...utxo,
+          account,
+        };
+      }) as Utxo[];
     } else {
       return Promise.reject(new Error(`Unknown Error`));
     }
