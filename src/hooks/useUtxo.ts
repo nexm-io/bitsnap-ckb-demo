@@ -1,12 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
-import { useNetwork } from "./useNetwork";
-import { useAccount } from "./useAccount";
+import { useContext, useEffect, useMemo, useState } from "react";
 import { Utxo, getUtxo } from "../mempool/utxo";
 import { toast } from "react-toastify";
+import { AppContext } from "./AppContext";
 
 export const useUtxo = () => {
-  const { network } = useNetwork();
-  const { accounts } = useAccount();
+  const [state] = useContext(AppContext);
+  const { network, accounts } = state;
   const [listUtxo, setListUtxo] = useState<Utxo[]>([]);
   const [selected, setSelected] = useState<Utxo[]>([]);
 

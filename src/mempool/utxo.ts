@@ -41,3 +41,29 @@ export const getUtxo = async (
     return [];
   }
 };
+
+export const getUtxoByAddress = async (
+  address: string,
+  network: BitcoinNetwork
+) => {
+  try {
+    const response = await fetch(
+      network === BitcoinNetwork.Main
+        ? `https://mempool.space/api/address/${address}/utxo`
+        : `https://mempool.space/testnet/api/address/${address}/utxo`
+    );
+
+    if (response.ok) {
+      return (await response.json()).map((utxo: MempoolUtxoResponse) => {
+        return {
+          ...utxo,
+        };
+      }) as MempoolUtxoResponse[];
+    } else {
+      return Promise.reject(new Error(`Unknown Error`));
+    }
+  } catch (error) {
+    console.log(error);
+    return [];
+  }
+};

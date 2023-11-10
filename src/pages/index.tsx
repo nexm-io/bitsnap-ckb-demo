@@ -5,6 +5,8 @@ import { ConnectCard } from "../components/Demo/ConnectCard";
 import { NetworkCard } from "../components/Demo/NetworkCard";
 import { AccountCard } from "../components/Demo/AccountCard";
 import { SendCard } from "../components/Demo/SendCard";
+import { AppProvider } from "../hooks/AppContext";
+import { InscribeCard } from "../components/Demo/InscribeCard";
 
 const Container = styled.div`
   display: flex;
@@ -82,20 +84,27 @@ const Index = () => {
       <Subtitle>
         Non-custodial wallet for <code>Bitcoin</code> network
       </Subtitle>
-      <CardContainer>
-        {state.error && (
-          <ErrorMessage>
-            <b>An error happened:</b> {state.error.message}
-          </ErrorMessage>
-        )}
-
-        <ConnectCard />
-        <NetworkCard />
-      </CardContainer>
-      <CardContainer>
-        <AccountCard />
-        <SendCard />
-      </CardContainer>
+      <AppProvider>
+        {/* 1st row */}
+        <CardContainer>
+          {state.error && (
+            <ErrorMessage>
+              <b>An error happened:</b> {state.error.message}
+            </ErrorMessage>
+          )}
+          <ConnectCard />
+          <NetworkCard />
+        </CardContainer>
+        {/* 2nd row */}
+        <CardContainer>
+          <AccountCard />
+          <SendCard />
+        </CardContainer>
+        {/* 3rd row */}
+        <CardContainer>
+          <InscribeCard />
+        </CardContainer>
+      </AppProvider>
     </Container>
   );
 };

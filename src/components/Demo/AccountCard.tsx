@@ -1,13 +1,13 @@
 import { Button, Card } from "../../components";
 import { BitcoinScriptType } from "../../utils/interface";
-import { useContext, useMemo, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { MetaMaskContext, MetamaskActions } from "../../hooks";
 import styled from "styled-components";
-import { useAccount } from "../../hooks/useAccount";
 import { satToBit } from "../../mempool/address";
 import { truncateString } from "../../utils/string";
-import { useBalance } from "../../hooks/useBalance";
 import { toast } from "react-toastify";
+import { BitcoinAccount, addAccount } from "../../utils";
+import { AppActions, AppContext } from "../../hooks/AppContext";
 
 const Row = styled.div`
   display: flex;
@@ -17,16 +17,39 @@ const Row = styled.div`
 export const AccountCard = () => {
   const [state, dispatch] = useContext(MetaMaskContext);
 
-  const { accounts, addSnapAccount } = useAccount();
-  const { totalBalance, balance } = useBalance();
-  const [address, setAddress] = useState<string>(
-    accounts.length > 0 ? accounts[0].address : ""
-  );
-  const currentAccount = useMemo(() => {
-    const queryAddress =
-      address ?? (accounts.length > 0 ? accounts[0].address : "");
-    return accounts.find((account) => account.address === queryAddress);
-  }, [address, accounts.length]);
+  const [appState, appDispatch] = useContext(AppContext);
+  const { accounts, totalBalance, balance } = appState;
+  const [address, setAddress] = useState<string>("");
+  const [currentAccount, setCurrentAccount] = useState<
+    BitcoinAccount | undefined
+  >();
+
+  const addSnapAccount = (scriptType: BitcoinScriptType) => {
+    addAccount(scriptType).then((account) => {
+      if (account) {
+        appDispatch({
+          type: AppActions.AddAccount,
+          payload: account,
+        });
+      }
+    });
+  };
+
+  useEffect(() => {
+    if (accounts.length > 0 && !currentAccount) {
+      setCurrentAccount(accounts[0]);
+      setAddress(accounts[0].address);
+    }
+  }, [accounts.length]);
+
+  useEffect(() => {
+    if (accounts.length > 0 && address) {
+      const account = accounts.find((account) => account.address === address);
+      if (account) {
+        setCurrentAccount(account);
+      }
+    }
+  }, [address]);
 
   const handleAddAccountClick = async (scriptType: BitcoinScriptType) => {
     try {

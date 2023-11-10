@@ -1,11 +1,10 @@
-import { isLocalSnap, shouldDisplayReconnectButton } from "../../utils";
 import { Button, Card } from "../../components";
 import { BitcoinNetwork } from "../../utils/interface";
-import { useNetwork } from "../../hooks/useNetwork";
 import { useContext } from "react";
 import { MetaMaskContext } from "../../hooks";
-import { defaultSnapOrigin } from "../../config";
 import styled from "styled-components";
+import { AppActions, AppContext } from "../../hooks/AppContext";
+import { updateNetworkInSnap } from "../../utils";
 
 const Row = styled.div`
   display: flex;
@@ -13,8 +12,18 @@ const Row = styled.div`
 `;
 
 export const NetworkCard = () => {
-  const { network, switchNetwork } = useNetwork();
   const [state] = useContext(MetaMaskContext);
+  const [appState, appDispatch] = useContext(AppContext);
+  const { network } = appState;
+
+  const switchNetwork = (network: BitcoinNetwork) => {
+    updateNetworkInSnap(network).then(() =>
+      appDispatch({
+        type: AppActions.SwitchNetwork,
+        payload: network,
+      })
+    );
+  };
 
   return (
     <Card

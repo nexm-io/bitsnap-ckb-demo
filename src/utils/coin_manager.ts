@@ -40,7 +40,7 @@ export class Bitcoin {
         // Since internalKey is an xOnly pubkey, we drop the DER header byte
         const xOnlyPubkey = toXOnly(publicKey);
         address = bitcoin.payments.p2tr({
-          pubkey: xOnlyPubkey,
+          internalPubkey: xOnlyPubkey,
           network: networkConfig,
         }).address;
         break;

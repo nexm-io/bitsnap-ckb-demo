@@ -12,9 +12,11 @@ import { getTxRaw } from "../mempool/transaction";
 import { toXOnly } from "./coin_manager";
 import { detectNetworkAndScriptTypeByAddress } from "./bitcoin";
 
-const OVERHEAD_VBYTE_SIZE = 12;
+export const OVERHEAD_VBYTE_SIZE = 12;
+export const LEAF_VERSION_TAPSCRIPT = 192;
+export const POSTAGE = 1500;
 
-export const composePsbt = async (
+export const composeSendPsbt = async (
   receiver: string,
   changeAddress: string,
   network: BitcoinNetwork,
@@ -76,12 +78,13 @@ export const composePsbt = async (
         break;
 
       case BitcoinScriptType.P2TR:
+        // Key Path Spending
         const xOnlyPubKey = toXOnly(pubkey);
         psbt.addInput({
           ...commonFields,
           witnessUtxo: {
             script: payments.p2tr({
-              pubkey: xOnlyPubKey,
+              internalPubkey: xOnlyPubKey,
               network: networkConfig,
             }).output as Buffer,
             value: input.value,
@@ -130,7 +133,7 @@ export const composePsbt = async (
   return { psbt, finalFee };
 };
 
-const calculateScript = (publicKey: Buffer, network: Network) => {
+export const calculateScript = (publicKey: Buffer, network: Network) => {
   const p2wpkh = payments.p2wpkh({
     pubkey: publicKey,
     network,
@@ -146,7 +149,7 @@ const calculateScript = (publicKey: Buffer, network: Network) => {
   return script;
 };
 
-const compileScript = (script: Buffer) => {
+export const compileScript = (script: Buffer) => {
   return bitcoinScript.compile([
     bitcoinScript.OPS.OP_HASH160,
     crypto.hash160(script),
@@ -158,11 +161,11 @@ const compileScript = (script: Buffer) => {
 // https://blockchain-academy.hs-mittweida.de/2023/02/calculation-of-bitcoin-transaction-fees-explained/
 // https://bitcoin.stackexchange.com/questions/84004/how-do-virtual-size-stripped-size-and-raw-size-compare-between-legacy-address-f
 // https://medium.com/coinmonks/on-bitcoin-transaction-sizes-part-2-9445373d17f4#:~:text=Pay%2Dto%2DTaproot%20(P2TR,inputs%20also%20have%20fixed%20size.
-const calculateFee = (txSize: number, fee: number) => {
+export const calculateFee = (txSize: number, fee: number) => {
   return txSize * fee;
 };
 
-const getTxSizeOutputByScriptType = (scriptType: BitcoinScriptType) => {
+export const getTxSizeOutputByScriptType = (scriptType: BitcoinScriptType) => {
   switch (scriptType) {
     case BitcoinScriptType.P2PKH:
       return 34;
@@ -177,7 +180,7 @@ const getTxSizeOutputByScriptType = (scriptType: BitcoinScriptType) => {
   }
 };
 
-const getTxSizeInputByScriptType = (scriptType: BitcoinScriptType) => {
+export const getTxSizeInputByScriptType = (scriptType: BitcoinScriptType) => {
   switch (scriptType) {
     case BitcoinScriptType.P2PKH:
       return 148;

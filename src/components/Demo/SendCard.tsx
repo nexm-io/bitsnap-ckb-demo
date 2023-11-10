@@ -1,19 +1,17 @@
-import { isLocalSnap, signPsbt } from "../../utils";
+import { signPsbt } from "../../utils";
 import { Button, Card } from "../../components";
 import { useContext, useEffect, useState } from "react";
 import { MetaMaskContext } from "../../hooks";
-import { defaultSnapOrigin } from "../../config";
 import { bitToSat, satToBit } from "../../mempool/address";
-import { composePsbt } from "../../utils/psbt";
+import { composeSendPsbt } from "../../utils/psbt";
 import { validateTx } from "../../utils/psbtValidator";
 import { RecommendedFees, getRecommendFees } from "../../mempool/fee";
-import { useNetwork } from "../../hooks/useNetwork";
 import { submitTx } from "../../mempool/transaction";
 import { toast } from "react-toastify";
 import { truncateString } from "../../utils/string";
-import { useAccount } from "../../hooks/useAccount";
-import { useUtxo } from "../../hooks/useUtxo";
 import styled from "styled-components";
+import { AppContext } from "../../hooks/AppContext";
+import { UtxoCard } from "./UtxoCard";
 
 const Row = styled.div`
   display: flex;
@@ -24,26 +22,28 @@ export const SendCard = () => {
   const [state] = useContext(MetaMaskContext);
   const [amount, setAmount] = useState<string>("0");
   const [receiver, setReceiver] = useState<string>("");
-  const { network } = useNetwork();
+  const [appState] = useContext(AppContext);
+  const { network, accounts, totalUtxoValue, selectedUtxo } = appState;
+
   // Fees
   const [fees, setFees] = useState<RecommendedFees | undefined>();
   const [fee, setFee] = useState<string>("");
   const [finalFee, setFinalFee] = useState(0);
 
-  // Utxo
-  const { selected, totalUtxoValue, listUtxo, setSelected } = useUtxo();
-
   // Account
-  const { accounts } = useAccount();
-  const [changeAddress, setChangeAddress] = useState<string>(
-    accounts.length > 0 ? accounts[0].address : ""
-  );
+  const [changeAddress, setChangeAddress] = useState<string>("");
 
   useEffect(() => {
     if (network) {
       getRecommendFees(network).then((fees) => setFees(fees));
     }
   }, [network]);
+
+  useEffect(() => {
+    if (accounts.length > 0) {
+      setChangeAddress(accounts[0].address);
+    }
+  }, [accounts.length]);
 
   useEffect(() => {
     if (fees && !fee) {
@@ -80,18 +80,17 @@ export const SendCard = () => {
 
     if (receiver && network && fees) {
       // // Construct Tx
-      const { psbt, finalFee } = await composePsbt(
+      const { psbt, finalFee } = await composeSendPsbt(
         receiver,
         changeAddress,
         network,
-        selected,
+        selectedUtxo,
         bitToSat(parseFloat(amount)),
         fees[fee]
       );
       if (
         !validateTx({
           psbt,
-          // TODO: must calculate from list utxo
           utxoAmount: totalUtxoValue,
         })
       ) {
@@ -107,64 +106,6 @@ export const SendCard = () => {
         }
       });
     }
-  };
-
-  const UtxoCard = () => {
-    const handleOnChange = (index: number) => {
-      if (
-        selected.findIndex(
-          (utxo) =>
-            utxo.txid === listUtxo[index].txid &&
-            utxo.vout === listUtxo[index].vout
-        ) === -1
-      ) {
-        setSelected([...selected, listUtxo[index]]);
-      } else {
-        setSelected(
-          selected.filter(
-            (utxo) =>
-              utxo.txid !== listUtxo[index].txid ||
-              utxo.vout !== listUtxo[index].vout
-          )
-        );
-      }
-    };
-
-    return (
-      <>
-        <b>UTXO</b>
-        <br />
-        {listUtxo.map((utxo, index) => {
-          return (
-            <div key={index}>
-              <div>
-                <input
-                  type="checkbox"
-                  name={utxo.txid}
-                  value={index}
-                  checked={selected
-                    .map((v) => `${v.txid}-${v.vout}`)
-                    .includes(`${utxo.txid}-${utxo.vout}`)}
-                  onChange={() => handleOnChange(index)}
-                />
-                <label
-                  onClick={() => {
-                    navigator.clipboard.writeText(utxo.account.address);
-                    toast.success("Copy address success");
-                  }}
-                >
-                  {truncateString(utxo.account.address, 20)}
-                </label>
-              </div>
-              <div className="right-section">{utxo.value} sat</div>
-            </div>
-          );
-        })}
-        <div>
-          <p>Total: {totalUtxoValue} sat</p>
-        </div>
-      </>
-    );
   };
 
   return (

@@ -86,7 +86,6 @@ export const detectNetworkAndScriptType = (extendedPubKey: string) => {
 };
 
 export const detectNetworkAndScriptTypeByAddress = (address: string) => {
-  console.log(address);
   // Mainnet
   if (address.startsWith("1")) {
     return {
