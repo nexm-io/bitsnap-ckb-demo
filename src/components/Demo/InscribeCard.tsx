@@ -24,15 +24,84 @@ const Row = styled.div`
   gap: 10px;
 `;
 
+const TextForm = (setMediaContent: (text: string) => void) => {
+  return (
+    <>
+      <p>Text:</p>
+      <input
+        placeholder="Any Text"
+        onChange={(event) => setMediaContent(event.target.value)}
+      />
+    </>
+  );
+};
+
+const FileForm = (
+  label: string,
+  setMediaContent: (base64: string) => void,
+  type?: string
+) => {
+  return (
+    <>
+      <p>{label}:</p>
+      <input
+        type="file"
+        accept={type}
+        onChange={(event) => {
+          if (event.target.files) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              // Use a regex to remove data url part
+              if (reader.result) {
+                const base64String = (reader.result as string)
+                  .replace("data:", "")
+                  .replace(/^.+,/, "");
+                setMediaContent(base64String);
+              }
+            };
+            reader.readAsDataURL(event.target.files[0]);
+          }
+        }}
+      />
+    </>
+  );
+};
+
+const Form = ({
+  mediaType,
+  setMediaContent,
+}: {
+  mediaType: string;
+  setMediaContent: (base64: string) => void;
+}) => {
+  switch (mediaType) {
+    case "image/jpeg":
+    case "image/png":
+      return FileForm("Image", setMediaContent, mediaType);
+    case "video/mp4":
+      return FileForm("Video", setMediaContent, mediaType);
+    default:
+      return TextForm(setMediaContent);
+  }
+};
+
 export const InscribeCard = () => {
   const [state] = useContext(AppContext);
   const { selectedUtxo, accounts, network, totalUtxoValue } = state;
-  const [mediaType, setMediaType] = useState<MediaType>("text/plain");
+  const [mediaType, setMediaType] = useState<MediaType>(
+    "text/plain;charset=utf-8"
+  );
   const [mediaContent, setMediaContent] = useState<string>("");
   const [changeAddress, setChangeAddress] = useState<string>("");
   const [fees, setFees] = useState<RecommendedFees | undefined>();
   const [fee, setFee] = useState<string>("");
   const [finalFee, setFinalFee] = useState(0);
+
+  useEffect(() => {
+    if (accounts.length > 0) {
+      setChangeAddress(accounts[0].address);
+    }
+  }, [accounts.length]);
 
   useEffect(() => {
     if (network) {
@@ -74,7 +143,7 @@ export const InscribeCard = () => {
 
       // Construct Tx
       const { psbt, finalFee } = await commitInscription(
-        inscriptionScript.address!,
+        inscriptionScript,
         changeAddress,
         network,
         spenderUtxo,
@@ -90,7 +159,9 @@ export const InscribeCard = () => {
       }
       // Sign Tx
       setFinalFee(finalFee);
-      const { txId, txHex } = await signPsbt(psbt.toBase64());
+      const { txId, txHex } = await signPsbt(psbt.toBase64(), [
+        spenderUtxo.account.address,
+      ]);
       // Submit Tx
       const result = await submitTx(txHex, network);
       if (result) {
@@ -110,65 +181,13 @@ export const InscribeCard = () => {
       setFinalFee(revealFee);
       const { txId: txRevealId, txHex: txRevealHex } = await signPsbt(
         revealpsbt.toBase64(),
-        spenderUtxo.account.address
+        [spenderUtxo.account.address]
       );
       // Submit Tx
       const revealResult = await submitTx(txRevealHex, network);
       if (revealResult) {
         toast(`commit inscription tx success: ${txRevealId}`);
       }
-    }
-  };
-
-  const TextForm = () => {
-    return (
-      <>
-        <p>Text:</p>
-        <input
-          placeholder="Any Text"
-          value={mediaContent}
-          onChange={(event) => setMediaContent(event.target.value)}
-        />
-      </>
-    );
-  };
-
-  const FileForm = (label: string, type?: string) => {
-    return (
-      <>
-        <p>{label}:</p>
-        <input
-          type="file"
-          accept={type}
-          onChange={(event) => {
-            if (event.target.files) {
-              const reader = new FileReader();
-              reader.onloadend = () => {
-                // Use a regex to remove data url part
-                if (reader.result) {
-                  const base64String = (reader.result as string)
-                    .replace("data:", "")
-                    .replace(/^.+,/, "");
-                  setMediaContent(base64String);
-                }
-              };
-              reader.readAsDataURL(event.target.files[0]);
-            }
-          }}
-        />
-      </>
-    );
-  };
-
-  const Form = () => {
-    switch (mediaType) {
-      case "image/jpeg":
-      case "image/png":
-        return FileForm("Image", mediaType);
-      case "video/mp4":
-        return FileForm("Video", mediaType);
-      default:
-        return TextForm();
     }
   };
 
@@ -222,7 +241,7 @@ export const InscribeCard = () => {
                     </option>
                   ))}
                 </select>
-                <Form />
+                <Form mediaType={mediaType} setMediaContent={setMediaContent} />
               </div>
               <div>
                 <UtxoCard />

@@ -10,11 +10,8 @@ import { BitcoinNetwork, BitcoinScriptType } from "./interface";
 import { Utxo } from "../mempool/utxo";
 import { getTxRaw } from "../mempool/transaction";
 import { toXOnly } from "./coin_manager";
+import { Input, virtualSize } from "./virtualSize";
 import { detectNetworkAndScriptTypeByAddress } from "./bitcoin";
-
-export const OVERHEAD_VBYTE_SIZE = 12;
-export const LEAF_VERSION_TAPSCRIPT = 192;
-export const POSTAGE = 1500;
 
 export const composeSendPsbt = async (
   receiver: string,
@@ -22,7 +19,7 @@ export const composeSendPsbt = async (
   network: BitcoinNetwork,
   listUtxo: Utxo[],
   amount: number,
-  fee: number
+  feeRate: number
 ) => {
   const networkConfig =
     network === BitcoinNetwork.Main ? networks.bitcoin : networks.testnet;
@@ -30,23 +27,28 @@ export const composeSendPsbt = async (
   const psbt = new Psbt({ network: networkConfig });
 
   let totalUtxo = 0;
-  let txSize = OVERHEAD_VBYTE_SIZE;
+  const inputs: Input[] = [];
 
   for (const input of listUtxo) {
     totalUtxo += input.value;
 
-    const rawHex = await getTxRaw(input.txid, network);
     const pubkey = Buffer.from(input.account.pubKey, "hex");
-
     const commonFields = {
       hash: input.txid,
       index: input.vout,
-      nonWitnessUtxo: Buffer.from(rawHex, "hex"),
     };
     switch (input.account.scriptType) {
       case BitcoinScriptType.P2PKH:
+        const rawHex = await getTxRaw(input.txid, network);
         psbt.addInput({
           ...commonFields,
+          nonWitnessUtxo: Buffer.from(rawHex, "hex"),
+        });
+
+        // For calculate tx size
+        inputs.push({
+          witness: null,
+          script: input.account.scriptType,
         });
         break;
 
@@ -61,6 +63,12 @@ export const composeSendPsbt = async (
             value: input.value,
           },
         });
+
+        // For calculate tx size
+        inputs.push({
+          witness: [],
+          script: input.account.scriptType,
+        });
         break;
 
       case BitcoinScriptType.P2SH_P2WPKH:
@@ -74,6 +82,12 @@ export const composeSendPsbt = async (
             pubkey,
             network: networkConfig,
           }).output,
+        });
+
+        // For calculate tx size
+        inputs.push({
+          witness: [],
+          script: input.account.scriptType,
         });
         break;
 
@@ -91,25 +105,27 @@ export const composeSendPsbt = async (
           },
           tapInternalKey: xOnlyPubKey,
         });
+
+        // For calculate tx size (Only P2TR Key-path)
+        inputs.push({
+          witness: [],
+          script: input.account.scriptType,
+        });
         break;
 
       default:
         throw new Error("script Type not matched");
     }
-
-    txSize += getTxSizeInputByScriptType(input.account.scriptType);
   }
 
-  // Receiver
-  const { scriptType } = detectNetworkAndScriptTypeByAddress(receiver);
-  txSize += getTxSizeOutputByScriptType(scriptType);
-
-  // Remainning return to changeAddress
-  const { scriptType: scriptTypeChange } =
-    detectNetworkAndScriptTypeByAddress(changeAddress);
-  txSize += getTxSizeOutputByScriptType(scriptTypeChange);
-
-  const finalFee = calculateFee(txSize, fee);
+  // Calculate fee with 2 outputs
+  const outputs = [receiver, changeAddress].map((address) => {
+    return {
+      script: detectNetworkAndScriptTypeByAddress(address).scriptType,
+    };
+  });
+  const txvBytes = virtualSize(inputs, outputs);
+  let finalFee = txvBytes * feeRate;
 
   if (totalUtxo >= amount + finalFee) {
     psbt.addOutput({
@@ -122,6 +138,10 @@ export const composeSendPsbt = async (
       value: totalUtxo - amount - finalFee,
     });
   } else if (totalUtxo >= finalFee) {
+    // Re-calculate finalFee because the output has reduce from 2 to 1
+    const txvBytes = virtualSize(inputs, outputs.slice(0, 1));
+    finalFee = txvBytes * feeRate;
+
     psbt.addOutput({
       address: receiver,
       value: totalUtxo - finalFee,
@@ -155,42 +175,4 @@ export const compileScript = (script: Buffer) => {
     crypto.hash160(script),
     bitcoinScript.OPS.OP_EQUAL,
   ]);
-};
-
-// https://i.stack.imgur.com/1iDzo.png
-// https://blockchain-academy.hs-mittweida.de/2023/02/calculation-of-bitcoin-transaction-fees-explained/
-// https://bitcoin.stackexchange.com/questions/84004/how-do-virtual-size-stripped-size-and-raw-size-compare-between-legacy-address-f
-// https://medium.com/coinmonks/on-bitcoin-transaction-sizes-part-2-9445373d17f4#:~:text=Pay%2Dto%2DTaproot%20(P2TR,inputs%20also%20have%20fixed%20size.
-export const calculateFee = (txSize: number, fee: number) => {
-  return txSize * fee;
-};
-
-export const getTxSizeOutputByScriptType = (scriptType: BitcoinScriptType) => {
-  switch (scriptType) {
-    case BitcoinScriptType.P2PKH:
-      return 34;
-    case BitcoinScriptType.P2WPKH:
-      return 31;
-    case BitcoinScriptType.P2SH_P2WPKH:
-      return 32;
-    case BitcoinScriptType.P2TR:
-      return 43;
-    default:
-      throw new Error("script Type not matched");
-  }
-};
-
-export const getTxSizeInputByScriptType = (scriptType: BitcoinScriptType) => {
-  switch (scriptType) {
-    case BitcoinScriptType.P2PKH:
-      return 148;
-    case BitcoinScriptType.P2WPKH:
-      return 68;
-    case BitcoinScriptType.P2SH_P2WPKH:
-      return 91;
-    case BitcoinScriptType.P2TR:
-      return 41;
-    default:
-      throw new Error("script Type not matched");
-  }
 };

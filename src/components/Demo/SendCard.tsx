@@ -98,7 +98,10 @@ export const SendCard = () => {
       }
       // Sign Tx
       setFinalFee(finalFee);
-      const { txId, txHex } = await signPsbt(psbt.toBase64());
+      const { txId, txHex } = await signPsbt(
+        psbt.toBase64(),
+        selectedUtxo.map((utxo) => utxo.account.address)
+      );
       // Submit Tx
       submitTx(txHex, network).then((result) => {
         if (result) {

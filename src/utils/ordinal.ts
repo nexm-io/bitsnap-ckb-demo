@@ -11,25 +11,19 @@ import {
 import { Tapleaf, Taptree } from "bitcoinjs-lib/src/types";
 import { BitcoinNetwork, BitcoinScriptType } from "./interface";
 import { Utxo, getUtxoByAddress } from "../mempool/utxo";
-import { getTxRaw } from "../mempool/transaction";
 import { toXOnly } from "./coin_manager";
 import {
   LEAF_VERSION_TAPSCRIPT,
   tweakKey,
 } from "bitcoinjs-lib/src/payments/bip341";
-import {
-  OVERHEAD_VBYTE_SIZE,
-  POSTAGE,
-  calculateFee,
-  getTxSizeInputByScriptType,
-  getTxSizeOutputByScriptType,
-} from "./psbt";
+import { virtualSize } from "./virtualSize";
+import { DUST_THRESHOLD } from "./psbtValidator";
 
 // Maximum number of bytes pushable to the witness stack
 const MAXIMUM_SCRIPT_ELEMENT_SIZE = 520;
 
 export const SupportedMediaTypes: MediaType[] = [
-  "text/plain",
+  "text/plain;charset=utf-8",
   "image/jpeg",
   "image/png",
   "video/mp4",
@@ -194,29 +188,26 @@ export function buildInscriptionScript(
 // Inscription IDs are of the form TXIDiN, where TXID is the transaction ID of the reveal transaction,
 // and N is the index of the inscription in the reveal transaction.
 export async function commitInscription(
-  commitAddress: string,
+  inscription: Payment,
   changeAddress: string,
   network: BitcoinNetwork,
   spenderUtxo: Utxo,
-  fee: number
+  feeRate: number
 ) {
   const networkConfig =
     network === BitcoinNetwork.Main ? networks.bitcoin : networks.testnet;
 
   const psbt = new Psbt({ network: networkConfig });
 
-  const rawHex = await getTxRaw(spenderUtxo.txid, network);
   const pubkey = Buffer.from(spenderUtxo.account.pubKey, "hex");
   const xOnlyPubKey = toXOnly(pubkey);
 
   // 1. Commit Step - transfer postage to this commit address
-  let txSize = OVERHEAD_VBYTE_SIZE;
-
+  const commitAddress = inscription.address!;
   // build input
   psbt.addInput({
     hash: spenderUtxo.txid,
     index: spenderUtxo.vout,
-    nonWitnessUtxo: Buffer.from(rawHex, "hex"),
     witnessUtxo: {
       script: payments.p2tr({
         internalPubkey: xOnlyPubKey,
@@ -227,22 +218,62 @@ export async function commitInscription(
     tapInternalKey: xOnlyPubKey,
   });
 
-  psbt.addOutput({
-    address: commitAddress,
-    value: POSTAGE, // postage: base value of the inscription in sats
-  });
+  // Calculate Postage (which is used for reveal tx)
+  // Reveal TX consist of:
+  // 1 Input: (Commited UTXO with Witness (Taptree))
+  // 1 Output: (Remainning Postage value)
+  const revealTxvBytes = virtualSize(
+    [
+      {
+        witness: inscription.witness!,
+        script: BitcoinScriptType.P2TR,
+      },
+    ],
+    [{ script: BitcoinScriptType.P2TR }]
+  );
+  let postage = revealTxvBytes * feeRate;
+  if (postage < DUST_THRESHOLD) {
+    postage = DUST_THRESHOLD + 1;
+  }
 
-  txSize += getTxSizeInputByScriptType(BitcoinScriptType.P2TR);
-  txSize += 2 * getTxSizeOutputByScriptType(BitcoinScriptType.P2TR);
-  // TODO: change this
-  txSize += 58; // donot know why :(
+  // Calculate this commit TX
+  // Its just simple Taproot KeyPath Sending
+  // 1 Input: (Taproot UTXO)
+  // 2 Output: (Commit UTXO, Remaining from Input UTXO)
+  const inputs = [
+    {
+      witness: [],
+      script: BitcoinScriptType.P2TR,
+    },
+  ];
+  const outputs = [
+    { script: BitcoinScriptType.P2TR },
+    { script: BitcoinScriptType.P2TR },
+  ];
+  const commitTxvBytes = virtualSize(inputs, outputs);
+  let finalFee = commitTxvBytes * feeRate;
 
-  const finalFee = calculateFee(txSize, fee);
+  if (spenderUtxo.value >= postage + finalFee) {
+    psbt.addOutput({
+      address: commitAddress,
+      value: postage,
+    });
+    psbt.addOutput({
+      address: changeAddress,
+      value: spenderUtxo.value - postage - finalFee,
+    });
+  } else if (spenderUtxo.value >= finalFee) {
+    // Re-calculate finalFee because the output has reduce from 2 to 1
+    const txvBytes = virtualSize(inputs, outputs.slice(0, 1));
+    finalFee = txvBytes * feeRate;
 
-  psbt.addOutput({
-    address: changeAddress,
-    value: spenderUtxo.value - POSTAGE - finalFee,
-  });
+    psbt.addOutput({
+      address: commitAddress,
+      value: spenderUtxo.value - finalFee,
+    });
+  } else {
+    throw new Error("Not enough balance");
+  }
 
   return { psbt, finalFee };
 }
@@ -252,7 +283,7 @@ export async function revealInscription(
   changeAddress: string,
   network: BitcoinNetwork,
   inscriptScript: Payment,
-  fee: number
+  feeRate: number
 ) {
   const xOnlyPubKey = toXOnly(ownerPubkey);
   const networkConfig =
@@ -262,15 +293,12 @@ export async function revealInscription(
 
   // TODO: should get compatible commited utxo with this script instead of get first utxo
   const availableCommitUtxo = commitUtxo[0];
-  const rawHex = await getTxRaw(availableCommitUtxo.txid, network);
 
   // 2. Reveal step
   // build input
-  let txSize = OVERHEAD_VBYTE_SIZE;
   psbt.addInput({
     hash: availableCommitUtxo.txid,
     index: availableCommitUtxo.vout,
-    nonWitnessUtxo: Buffer.from(rawHex, "hex"),
     witnessUtxo: {
       script: inscriptScript.output!,
       value: availableCommitUtxo.value,
@@ -286,15 +314,16 @@ export async function revealInscription(
     ],
   });
 
-  txSize += getTxSizeInputByScriptType(BitcoinScriptType.P2TR);
-
-  // Remainning return to changeAddress
-  txSize += getTxSizeOutputByScriptType(BitcoinScriptType.P2TR);
-
-  // TODO: change this
-  txSize += 58; // donot know why :(
-
-  const finalFee = calculateFee(txSize, fee);
+  const revealTxvBytes = virtualSize(
+    [
+      {
+        witness: inscriptScript.witness!,
+        script: BitcoinScriptType.P2TR,
+      },
+    ],
+    [{ script: BitcoinScriptType.P2TR }]
+  );
+  const finalFee = revealTxvBytes * feeRate;
 
   if (availableCommitUtxo.value >= finalFee) {
     psbt.addOutput({

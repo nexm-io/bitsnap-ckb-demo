@@ -152,7 +152,7 @@ export async function getNetworkInSnap(): Promise<BitcoinNetwork> {
   }
 }
 
-export async function signPsbt(base64Psbt: string, signerAddresses?: string) {
+export async function signPsbt(base64Psbt: string, signerAddresses: string[]) {
   try {
     return (await window.ethereum.request({
       method: "wallet_invokeSnap",
