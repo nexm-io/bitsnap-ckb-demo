@@ -7,6 +7,7 @@ import { AccountCard } from "../components/Demo/AccountCard";
 import { SendCard } from "../components/Demo/SendCard";
 import { AppProvider } from "../hooks/AppContext";
 import { InscribeCard } from "../components/Demo/InscribeCard";
+import { MyOrdinals } from "../components/Demo/MyOrdinalCard";
 
 const Container = styled.div`
   display: flex;
@@ -103,6 +104,7 @@ const Index = () => {
         {/* 3rd row */}
         <CardContainer>
           <InscribeCard />
+          <MyOrdinals />
         </CardContainer>
       </AppProvider>
     </Container>

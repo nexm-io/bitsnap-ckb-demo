@@ -1,4 +1,4 @@
-import { BitcoinNetwork } from "../utils/interface";
+import { BitcoinNetwork } from "../../utils/interface";
 
 export const getTxRaw = async (txid: string, network: BitcoinNetwork) => {
   const response = await fetch(

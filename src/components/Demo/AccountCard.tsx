@@ -3,7 +3,7 @@ import { BitcoinScriptType } from "../../utils/interface";
 import { useContext, useEffect, useState } from "react";
 import { MetaMaskContext, MetamaskActions } from "../../hooks";
 import styled from "styled-components";
-import { satToBit } from "../../mempool/address";
+import { satToBit } from "../../api/mempool/address";
 import { truncateString } from "../../utils/string";
 import { toast } from "react-toastify";
 import { BitcoinAccount, addAccount } from "../../utils";

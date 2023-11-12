@@ -10,7 +10,7 @@ import {
 } from "bitcoinjs-lib";
 import { Tapleaf, Taptree } from "bitcoinjs-lib/src/types";
 import { BitcoinNetwork, BitcoinScriptType } from "./interface";
-import { Utxo, getUtxoByAddress } from "../mempool/utxo";
+import { Utxo, getUtxoByAddress } from "../api/mempool/utxo";
 import { toXOnly } from "./coin_manager";
 import {
   LEAF_VERSION_TAPSCRIPT,

@@ -7,8 +7,8 @@ import {
   crypto,
 } from "bitcoinjs-lib";
 import { BitcoinNetwork, BitcoinScriptType } from "./interface";
-import { Utxo } from "../mempool/utxo";
-import { getTxRaw } from "../mempool/transaction";
+import { Utxo } from "../api/mempool/utxo";
+import { getTxRaw } from "../api/mempool/transaction";
 import { toXOnly } from "./coin_manager";
 import { Input, virtualSize } from "./virtualSize";
 import { detectNetworkAndScriptTypeByAddress } from "./bitcoin";

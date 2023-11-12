@@ -1,4 +1,4 @@
-import { BitcoinNetwork } from "../utils/interface";
+import { BitcoinNetwork } from "../../utils/interface";
 
 const BITCOIN_DECIMAL = 8;
 

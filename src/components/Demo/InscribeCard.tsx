@@ -10,10 +10,10 @@ import {
 import { AppContext } from "../../hooks/AppContext";
 import { toast } from "react-toastify";
 import { truncateString } from "../../utils/string";
-import { RecommendedFees, getRecommendFees } from "../../mempool/fee";
-import { satToBit } from "../../mempool/address";
+import { RecommendedFees, getRecommendFees } from "../../api/mempool/fee";
+import { satToBit } from "../../api/mempool/address";
 import { signPsbt } from "../../utils";
-import { submitTx } from "../../mempool/transaction";
+import { submitTx } from "../../api/mempool/transaction";
 import styled from "styled-components";
 import { UtxoCard } from "./UtxoCard";
 import { BitcoinScriptType } from "../../utils/interface";

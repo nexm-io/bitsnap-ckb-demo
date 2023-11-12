@@ -1,5 +1,5 @@
 import { useContext, useEffect, useMemo, useState } from "react";
-import { Utxo, getUtxo } from "../mempool/utxo";
+import { Utxo, getUtxo } from "../api/mempool/utxo";
 import { toast } from "react-toastify";
 import { AppContext } from "./AppContext";
 

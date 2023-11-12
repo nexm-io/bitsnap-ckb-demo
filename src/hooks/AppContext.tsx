@@ -11,9 +11,9 @@ import {
 import { BitcoinNetwork } from "../utils/interface";
 import { BitcoinAccount, getAccounts, getNetworkInSnap } from "../utils";
 import { toast } from "react-toastify";
-import { getBalance } from "../mempool/address";
+import { getBalance } from "../api/mempool/address";
 import { MetaMaskContext } from "./MetamaskContext";
-import { Utxo, getUtxo } from "../mempool/utxo";
+import { Utxo, getUtxo } from "../api/mempool/utxo";
 
 export type BitcoinBalance = {
   [address: string]: number;

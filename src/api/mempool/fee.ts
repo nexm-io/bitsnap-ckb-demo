@@ -1,4 +1,4 @@
-import { BitcoinNetwork } from "../utils/interface";
+import { BitcoinNetwork } from "../../utils/interface";
 
 export type RecommendedFees = {
   [fee: string]: number;
