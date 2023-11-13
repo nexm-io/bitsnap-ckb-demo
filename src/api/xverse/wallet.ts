@@ -4,6 +4,7 @@ export type Ordinal = {
   id: string;
   content_type: string;
   number: number;
+  owner: string;
 };
 
 export const getOrdinalContent = (network: BitcoinNetwork, ordinalId: string) =>
@@ -27,7 +28,13 @@ export const getOrdinals = async (network: BitcoinNetwork, address: string) => {
   if (response.ok) {
     return (await response.json()).results
       .map((result: any) => result.thumbnail_inscriptions)
-      .flat() as Ordinal[];
+      .flat()
+      .map((value: any) => {
+        return {
+          ...value,
+          owner: address,
+        };
+      }) as Ordinal[];
   } else {
     return Promise.reject(new Error(`Unknown Error`));
   }

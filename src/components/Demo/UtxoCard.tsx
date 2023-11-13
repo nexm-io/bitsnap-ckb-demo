@@ -5,7 +5,7 @@ import { toast } from "react-toastify";
 
 export const UtxoCard = () => {
   const [appState, dispatch] = useContext(AppContext);
-  const { totalUtxoValue, selectedUtxo, listUtxo } = appState;
+  const { totalUtxoValue, selectedUtxo, nonOrdUtxo } = appState;
 
   const handleOnChange = (index: number) => {
     dispatch({
@@ -18,7 +18,7 @@ export const UtxoCard = () => {
     <>
       <b>UTXO</b>
       <br />
-      {listUtxo.map((utxo, index) => {
+      {nonOrdUtxo.map((utxo, index) => {
         return (
           <div key={index}>
             <div>

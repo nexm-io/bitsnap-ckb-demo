@@ -14,6 +14,8 @@ import { toast } from "react-toastify";
 import { getBalance } from "../api/mempool/address";
 import { MetaMaskContext } from "./MetamaskContext";
 import { Utxo, getUtxo } from "../api/mempool/utxo";
+import { getOrdinalsFromUtxo } from "../api/xverse/inscription";
+import { Ordinal, getOrdinals } from "../api/xverse/wallet";
 
 export type BitcoinBalance = {
   [address: string]: number;
@@ -32,10 +34,14 @@ type BalanceState = {
   totalBalance: number;
 };
 
+type OrdUtxoMap = { [inscriptionId: string]: Utxo };
+
 type UtxoState = {
-  listUtxo: Utxo[];
+  nonOrdUtxo: Utxo[];
   selectedUtxo: Utxo[];
   totalUtxoValue: number;
+  ordinals: Ordinal[];
+  ordUtxo: OrdUtxoMap;
 };
 
 const initialState: AppState = {
@@ -47,9 +53,12 @@ const initialState: AppState = {
   balance: {},
   totalBalance: 0,
   // utxo
-  listUtxo: [],
+  nonOrdUtxo: [],
   selectedUtxo: [],
   totalUtxoValue: 0,
+  // ordinals
+  ordinals: [],
+  ordUtxo: {},
 };
 
 type AppState = NetworkState & AccountState & BalanceState & UtxoState;
@@ -67,8 +76,9 @@ export enum AppActions {
   LoadAccounts = "LoadAccounts",
   SetBalance = "SetBalance",
   AddAccount = "AddAccount",
-  SetListUtxo = "SetListUtxo",
+  SetUtxo = "SetUtxo",
   SelectUtxo = "SelectUtxo",
+  SetOrdinals = "SetOrdinals",
 }
 
 const reducer: Reducer<AppState, AppDispatch> = (state, action) => {
@@ -93,28 +103,28 @@ const reducer: Reducer<AppState, AppDispatch> = (state, action) => {
         ...state,
         accounts: [...state.accounts, action.payload],
       };
-    case AppActions.SetListUtxo:
+    case AppActions.SetUtxo:
       return {
         ...state,
-        listUtxo: action.payload,
+        ...action.payload,
       };
     case AppActions.SelectUtxo:
       const index: number = action.payload;
-      const { selectedUtxo, listUtxo } = state;
+      const { selectedUtxo, nonOrdUtxo } = state;
       let newSelectedUtxo: Utxo[] = [];
       if (
         selectedUtxo.findIndex(
           (utxo) =>
-            utxo.txid === listUtxo[index].txid &&
-            utxo.vout === listUtxo[index].vout
+            utxo.txid === nonOrdUtxo[index].txid &&
+            utxo.vout === nonOrdUtxo[index].vout
         ) === -1
       ) {
-        newSelectedUtxo = [...selectedUtxo, listUtxo[index]];
+        newSelectedUtxo = [...selectedUtxo, nonOrdUtxo[index]];
       } else {
         newSelectedUtxo = selectedUtxo.filter(
           (utxo) =>
-            utxo.txid !== listUtxo[index].txid ||
-            utxo.vout !== listUtxo[index].vout
+            utxo.txid !== nonOrdUtxo[index].txid ||
+            utxo.vout !== nonOrdUtxo[index].vout
         );
       }
 
@@ -125,6 +135,11 @@ const reducer: Reducer<AppState, AppDispatch> = (state, action) => {
           (acc, value) => acc + value.value,
           0
         ),
+      };
+    case AppActions.SetOrdinals:
+      return {
+        ...state,
+        ordinals: action.payload,
       };
     default:
       return state;
@@ -207,6 +222,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [state.network, state.accounts.length]);
 
+  // Utxo
   useEffect(() => {
     if (state.network && state.accounts.length > 0) {
       Promise.all(
@@ -214,22 +230,75 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           return getUtxo(account, state.network!);
         })
       )
-        .then((utxo) => {
+        .then(async (utxo) => {
+          const allUtxo = utxo.flat();
+          const nonOrdUtxo: Utxo[] = [];
+          const ordUtxo: OrdUtxoMap = {};
+
+          for (const utxo of allUtxo) {
+            const ordinalIds = await getOrdinalsFromUtxo(state.network!, utxo);
+            if (ordinalIds.length === 0) {
+              nonOrdUtxo.push(utxo);
+            } else {
+              for (const inscriptionId of ordinalIds) {
+                ordUtxo[inscriptionId] = utxo;
+              }
+            }
+          }
+
           dispatch({
-            type: AppActions.SetListUtxo,
-            payload: utxo.flat(),
+            type: AppActions.SetUtxo,
+            payload: {
+              nonOrdUtxo,
+              ordUtxo,
+            },
           });
         })
         .catch((_) => {
           dispatch({
-            type: AppActions.SetListUtxo,
-            payload: [],
+            type: AppActions.SetUtxo,
+            payload: {
+              nonOrdUtxo: [],
+              ordUtxo: {},
+            },
           });
           toast.error("Get utxo failed");
         });
     } else {
       dispatch({
-        type: AppActions.SetListUtxo,
+        type: AppActions.SetUtxo,
+        payload: {
+          nonOrdUtxo: [],
+          ordUtxo: {},
+        },
+      });
+    }
+  }, [state.network, state.accounts.length]);
+
+  // Ordinal
+  useEffect(() => {
+    if (state.network && state.accounts.length > 0) {
+      Promise.all(
+        state.accounts.map((account) => {
+          return getOrdinals(state.network!, account.address);
+        })
+      )
+        .then((ordinals) => {
+          dispatch({
+            type: AppActions.SetOrdinals,
+            payload: ordinals.flat(),
+          });
+        })
+        .catch((_) => {
+          dispatch({
+            type: AppActions.SetOrdinals,
+            payload: [],
+          });
+          toast.error("Get ordinals failed");
+        });
+    } else {
+      dispatch({
+        type: AppActions.SetOrdinals,
         payload: [],
       });
     }

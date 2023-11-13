@@ -1,9 +1,9 @@
 import styled from "styled-components";
 import { Card } from "../../components";
-import { useIndexer } from "../../hooks/useIndexer";
-import { getOrdinalContent } from "../../api/xverse/wallet";
-import { useContext } from "react";
+import { Ordinal, getOrdinalContent } from "../../api/xverse/wallet";
+import { useContext, useEffect, useState } from "react";
 import { AppContext } from "../../hooks/AppContext";
+import { Utxo } from "../../api/mempool/utxo";
 
 const Container = styled.div`
   display: flex;
@@ -18,10 +18,25 @@ const Frame = styled.iframe`
   margin: -20px -50px;
 `;
 
+type OrdUtxo = Ordinal & Utxo;
+
 export const MyOrdinals = () => {
   const [appState] = useContext(AppContext);
-  const { network } = appState;
-  const { ordinals } = useIndexer();
+  const { network, ordinals, ordUtxo } = appState;
+  const [_ordinals, setOrdinals] = useState<OrdUtxo[]>([]);
+
+  useEffect(() => {
+    if (ordinals.length > 0 && Object.keys(ordUtxo).length > 0) {
+      setOrdinals(
+        ordinals.map((ordinal) => {
+          return {
+            ...ordinal,
+            ...ordUtxo[ordinal.id],
+          };
+        })
+      );
+    }
+  }, [ordinals, ordUtxo]);
 
   return (
     <>
@@ -30,7 +45,7 @@ export const MyOrdinals = () => {
           title: "My Ordinals",
           description: (
             <Container>
-              {ordinals.map((ordinal) => (
+              {_ordinals.map((ordinal) => (
                 <div key={ordinal.id}>
                   <div>{ordinal.number}</div>
                   <div>
