@@ -76,6 +76,7 @@ export enum AppActions {
   LoadAccounts = "LoadAccounts",
   SetBalance = "SetBalance",
   AddAccount = "AddAccount",
+  AddAccounts = "AddAccounts",
   SetUtxo = "SetUtxo",
   SelectUtxo = "SelectUtxo",
   SetOrdinals = "SetOrdinals",
@@ -102,6 +103,11 @@ const reducer: Reducer<AppState, AppDispatch> = (state, action) => {
       return {
         ...state,
         accounts: [...state.accounts, action.payload],
+      };
+    case AppActions.AddAccounts:
+      return {
+        ...state,
+        accounts: [...state.accounts, ...action.payload],
       };
     case AppActions.SetUtxo:
       return {

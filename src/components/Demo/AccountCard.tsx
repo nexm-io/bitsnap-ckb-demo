@@ -6,7 +6,7 @@ import styled from "styled-components";
 import { satToBit } from "../../api/mempool/address";
 import { truncateString } from "../../utils/string";
 import { toast } from "react-toastify";
-import { BitcoinAccount, addAccount } from "../../utils";
+import { BitcoinAccount, addAccount, addAccounts } from "../../utils";
 import { AppActions, AppContext } from "../../hooks/AppContext";
 
 const Row = styled.div`
@@ -35,6 +35,17 @@ export const AccountCard = () => {
     });
   };
 
+  const addSnapAccounts = () => {
+    addAccounts().then((accounts) => {
+      if (accounts) {
+        appDispatch({
+          type: AppActions.AddAccounts,
+          payload: accounts,
+        });
+      }
+    });
+  };
+
   useEffect(() => {
     if (accounts.length > 0 && !currentAccount) {
       setCurrentAccount(accounts[0]);
@@ -54,6 +65,15 @@ export const AccountCard = () => {
   const handleAddAccountClick = async (scriptType: BitcoinScriptType) => {
     try {
       addSnapAccount(scriptType);
+    } catch (e) {
+      console.error(e);
+      dispatch({ type: MetamaskActions.SetError, payload: e });
+    }
+  };
+
+  const handleAddAccountsClick = async () => {
+    try {
+      addSnapAccounts();
     } catch (e) {
       console.error(e);
       dispatch({ type: MetamaskActions.SetError, payload: e });
@@ -149,6 +169,15 @@ export const AccountCard = () => {
                 disabled={!state.installedSnap}
               >
                 Native SegWit
+              </Button>
+            </Row>
+            <br />
+            <Row>
+              <Button
+                onClick={() => handleAddAccountsClick()}
+                disabled={!state.installedSnap}
+              >
+                All
               </Button>
             </Row>
           </>

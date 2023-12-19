@@ -109,6 +109,25 @@ export async function addAccount(
   }
 }
 
+export async function addAccounts(
+): Promise<BitcoinAccount[]> {
+  try {
+    return (await window.ethereum.request({
+      method: "wallet_invokeSnap",
+      params: {
+        snapId: defaultSnapOrigin,
+        request: {
+          method: "btc_addAccounts",
+        },
+      },
+    })) as BitcoinAccount[];
+  } catch (err: any) {
+    const error = new SnapError(err?.message || "Add 4 types of address failed");
+    console.error(error);
+    throw error;
+  }
+}
+
 export async function updateNetworkInSnap(network: BitcoinNetwork) {
   try {
     return await window.ethereum.request({
