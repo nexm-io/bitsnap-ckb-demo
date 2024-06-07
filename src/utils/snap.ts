@@ -1,7 +1,7 @@
 import { MetaMaskInpageProvider } from "@metamask/providers";
 import { defaultSnapOrigin } from "../config";
 import { GetSnapsResponse, Snap } from "../types";
-import { BitcoinNetwork, BitcoinScriptType } from "./interface";
+import { BitcoinNetwork, BitcoinScriptType, CkbNetwork } from "./interface";
 import { SnapError } from "./errors";
 
 /**
@@ -68,6 +68,13 @@ export interface BitcoinAccount {
   mfp: string;
 }
 
+export type CkbAccount = {
+  derivationPath: string[];
+  pubKey: string;
+  address: string;
+  mfp: string;
+};
+
 export async function getAccounts(): Promise<BitcoinAccount[]> {
   try {
     return (await window.ethereum.request({
@@ -79,6 +86,24 @@ export async function getAccounts(): Promise<BitcoinAccount[]> {
         },
       },
     })) as BitcoinAccount[];
+  } catch (err: any) {
+    const error = new SnapError(err?.message || "Get accounts failed");
+    console.error(error);
+    throw error;
+  }
+}
+
+export async function getCkbAccounts(): Promise<CkbAccount[]> {
+  try {
+    return (await window.ethereum.request({
+      method: "wallet_invokeSnap",
+      params: {
+        snapId: defaultSnapOrigin,
+        request: {
+          method: "ckb_getAccounts",
+        },
+      },
+    })) as CkbAccount[];
   } catch (err: any) {
     const error = new SnapError(err?.message || "Get accounts failed");
     console.error(error);
@@ -109,8 +134,25 @@ export async function addAccount(
   }
 }
 
-export async function addAccounts(
-): Promise<BitcoinAccount[]> {
+export async function addCkbAccount(): Promise<CkbAccount> {
+  try {
+    return (await window.ethereum.request({
+      method: "wallet_invokeSnap",
+      params: {
+        snapId: defaultSnapOrigin,
+        request: {
+          method: "ckb_addAccount",
+        },
+      },
+    })) as CkbAccount;
+  } catch (err: any) {
+    const error = new SnapError(err?.message || "Add new account failed");
+    console.error(error);
+    throw error;
+  }
+}
+
+export async function addAccounts(): Promise<BitcoinAccount[]> {
   try {
     return (await window.ethereum.request({
       method: "wallet_invokeSnap",
@@ -122,7 +164,9 @@ export async function addAccounts(
       },
     })) as BitcoinAccount[];
   } catch (err: any) {
-    const error = new SnapError(err?.message || "Add 4 types of address failed");
+    const error = new SnapError(
+      err?.message || "Add 4 types of address failed"
+    );
     console.error(error);
     throw error;
   }
@@ -136,6 +180,28 @@ export async function updateNetworkInSnap(network: BitcoinNetwork) {
         snapId: defaultSnapOrigin,
         request: {
           method: "btc_network",
+          params: {
+            action: "set",
+            network: network,
+          },
+        },
+      },
+    });
+  } catch (err: any) {
+    const error = new SnapError(err?.message || "Snap set Network failed");
+    console.error(error);
+    throw error;
+  }
+}
+
+export async function updateCkbNetworkInSnap(network: CkbNetwork) {
+  try {
+    return await window.ethereum.request({
+      method: "wallet_invokeSnap",
+      params: {
+        snapId: defaultSnapOrigin,
+        request: {
+          method: "ckb_network",
           params: {
             action: "set",
             network: network,
@@ -171,6 +237,27 @@ export async function getNetworkInSnap(): Promise<BitcoinNetwork> {
   }
 }
 
+export async function getCkbNetworkInSnap(): Promise<CkbNetwork> {
+  try {
+    return (await window.ethereum.request({
+      method: "wallet_invokeSnap",
+      params: {
+        snapId: defaultSnapOrigin,
+        request: {
+          method: "ckb_network",
+          params: {
+            action: "get",
+          },
+        },
+      },
+    })) as CkbNetwork;
+  } catch (err: any) {
+    const error = new SnapError(err?.message || "Get Snap Network failed");
+    console.error(error);
+    throw error;
+  }
+}
+
 export async function signPsbt(base64Psbt: string, signerAddresses: string[]) {
   try {
     return (await window.ethereum.request({
@@ -188,6 +275,28 @@ export async function signPsbt(base64Psbt: string, signerAddresses: string[]) {
     })) as Promise<{ txId: string; txHex: string }>;
   } catch (err: any) {
     const error = new SnapError(err?.message || "Sign PSBT failed");
+    console.error(error);
+    throw error;
+  }
+}
+
+export async function signCkbTx(txMessage: string, senderAddress: string) {
+  try {
+    return (await window.ethereum.request({
+      method: "wallet_invokeSnap",
+      params: {
+        snapId: defaultSnapOrigin,
+        request: {
+          method: "ckb_signTx",
+          params: {
+            txMessage,
+            senderAddress,
+          },
+        },
+      },
+    })) as string;
+  } catch (err: any) {
+    const error = new SnapError(err?.message || "Sign Tx failed");
     console.error(error);
     throw error;
   }

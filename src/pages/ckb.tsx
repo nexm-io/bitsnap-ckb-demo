@@ -2,12 +2,10 @@ import { useContext } from "react";
 import styled from "styled-components";
 import { MetaMaskContext } from "../hooks";
 import { ConnectCard } from "../components/Demo/ConnectCard";
-import { NetworkCard } from "../components/Demo/NetworkCard";
-import { AccountCard } from "../components/Demo/AccountCard";
-import { SendCard } from "../components/Demo/SendCard";
-import { AppProvider } from "../hooks/AppContext";
-import { InscribeCard } from "../components/Demo/InscribeCard";
-import { MyOrdinals } from "../components/Demo/MyOrdinalCard";
+import { AppProvider } from "../hooks/AppCkbContext";
+import { NetworkCard } from "../components/CKB/NetworkCard";
+import { AccountCard } from "../components/CKB/AccountCard";
+import { SendCard } from "../components/CKB/SendCard";
 
 const Container = styled.div`
   display: flex;
@@ -100,11 +98,6 @@ const Index = () => {
         <CardContainer>
           <AccountCard />
           <SendCard />
-        </CardContainer>
-        {/* 3rd row */}
-        <CardContainer>
-          <InscribeCard />
-          <MyOrdinals />
         </CardContainer>
       </AppProvider>
     </Container>

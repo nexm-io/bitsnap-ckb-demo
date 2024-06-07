@@ -41,6 +41,9 @@
     "styled-components": "5.3.3"
   },
   "devDependencies": {
+    "@ckb-lumos/base": "^0.23.0",
+    "@ckb-lumos/codec": "^0.23.0",
+    "@ckb-lumos/lumos": "^0.23.0",
     "@metamask/eslint-config": "^10.0.0",
     "@metamask/eslint-config-jest": "^10.0.0",
     "@metamask/eslint-config-nodejs": "^10.0.0",
